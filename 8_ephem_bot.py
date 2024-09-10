@@ -13,41 +13,80 @@
 
 """
 import logging
+from typing import Tuple
 
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+import ephem
+import settings
+from telegram.ext import Updater, CommandHandler
 
-logging.basicConfig(format='%(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO,
-                    filename='bot.log')
+PLANETS = [
+    'Jupiter', 'Mars', 'Mercury', 'Moon', 'Neptune', 'Pluto', 'Saturn', 'Sun', 'Uranus', 'Venus',
+]
 
-
-PROXY = {
-    'proxy_url': 'socks5://t1.learn.python.ru:1080',
-    'urllib3_proxy_kwargs': {
-        'username': 'learn',
-        'password': 'python'
-    }
-}
+logging.basicConfig(
+    format='%(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+    filename='bot.log'
+)
 
 
 def greet_user(update, context):
-    text = 'Вызван /start'
-    print(text)
-    update.message.reply_text(text)
+    print('/start')
+    update.message.reply_text('Hi!')
+    update.message.reply_text('Run "/planet <Planet>" to get a current planet constellation')
+    update.message.reply_text(f'Known planets: {PLANETS}')
 
+def _get_planet_by_name(name: str) -> ephem.Planet:
+    if name == 'Jupiter':
+        planet = ephem.Jupiter()
+    elif name == 'Mars':
+        planet = ephem.Mars()
+    elif name == 'Mercury':
+        planet = ephem.Mercury()
+    elif name == 'Moon':
+        planet = ephem.Moon()
+    elif name == 'Neptune':
+        planet = ephem.Neptune()
+    elif name == 'Pluto':
+        planet = ephem.Pluto()
+    elif name == 'Saturn':
+        planet = ephem.Saturn()
+    elif name == 'Sun':
+        planet = ephem.Sun()
+    elif name == 'Uranus':
+        planet = ephem.Uranus()
+    elif name == 'Venus':
+        planet = ephem.Venus()
+    else:
+        raise Exception(f'Planet {name} is not in the list of known planets: {PLANETS}')
+    planet.compute()
+    return planet
 
-def talk_to_me(update, context):
-    user_text = update.message.text
-    print(user_text)
-    update.message.reply_text(text)
+def _get_constellation_by_planet(planet: ephem.Planet) -> Tuple[str, str]:
+    return ephem.constellation(planet)
+
+def get_planet(update, context):
+    cmd, name = update.message.text.split()
+    print(cmd, name)
+    try:
+        planet = _get_planet_by_name(name)
+        constellation = _get_constellation_by_planet(planet)
+        print(constellation)
+        update.message.reply_text(constellation)
+    except Exception as e:
+        print(e)
+        update.message.reply_text('Error')
+        update.message.reply_text('Please check input command:')
+        update.message.reply_text('Run "/planet <Planet>"')
+        update.message.reply_text(f'Known planets: {PLANETS}')
 
 
 def main():
-    mybot = Updater("КЛЮЧ, КОТОРЫЙ НАМ ВЫДАЛ BotFather", request_kwargs=PROXY, use_context=True)
+    mybot = Updater(settings.API_KEY, use_context=True)
 
     dp = mybot.dispatcher
     dp.add_handler(CommandHandler("start", greet_user))
-    dp.add_handler(MessageHandler(Filters.text, talk_to_me))
+    dp.add_handler(CommandHandler("planet", get_planet))
 
     mybot.start_polling()
     mybot.idle()
